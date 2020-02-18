@@ -95,6 +95,47 @@ class Future {
   static rejectAfter(miliseconds, error) {
     return new Future(f.rejectAfter(miliseconds)({ error, context: Future._initContext() }));
   }
+
+  static encaseF(func) {
+    return (...args) => {
+      try {
+        return Future.resolve(func(...args));
+      } catch (e) {
+        return Future.reject(e);
+      }
+    }
+  }
+
+  static encaseP(func) {
+    return (...args) => {
+      return new Future((resolve, reject) => {
+        try {
+          func(...args)
+            .then(resolve)
+            .catch(reject);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    };
+  }
+
+  static encaseC(func) {
+    return (...args) => {
+      return new Future((resolve, reject) => {
+        try {
+          func(...args, (error, result) => {
+            if (!r.isNil(error)) {
+              return reject(error);
+            }
+            return resolve(result);
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    };
+  }
 }
 
 module.exports = Future;
