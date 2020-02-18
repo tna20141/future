@@ -1,0 +1,209 @@
+const assert = require('assert');
+const r = require('ramda');
+
+const Future = require('../index');
+const utils = require('./utils');
+
+const assertWithEmptyContext = utils.assertWithEmptyContext;
+
+describe(':: tag', () => {
+  it('tagging with then chain', done => {
+    const future = Future.resolve(2)
+      .then(num => num + 1)
+      .tag('tag1', { name: 'tag1' })
+      .then(num => Future.resolve(num + 3))
+      .then(num => num - 2)
+      .tag('tag1', 33)
+      .tag('tag2', { a: { b: 1 } })
+      .then(num => num.toString());
+    future
+      .then(str => str + 'a')
+      .tag('tag 3')
+      .fork(result => {
+        assert.deepEqual(result, {
+          value: '4a',
+          context: {
+            tags: [
+              { value: 'tag1', data: { name: 'tag1' } },
+              { value: 'tag1', data: 33 },
+              { value: 'tag2', data: { a: { b: 1 } } },
+              { value: 'tag 3', data: undefined },
+            ],
+          },
+        });
+        done();
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+  });
+
+  it('merging contexts in then chain, and immutability', done => {
+    const future1 = Future.resolve(2)
+      .tag('tag1', {})
+      .tag('tag2', { a: 1 });
+
+    Future.resolve(3)
+      .tag('tag3', { b: 2 })
+      .then(num => num + 3)
+      .tag('tag4', { b: 3 })
+      .then(() => future1)
+      .tag('tag5', 'zz')
+      .then(val => val)
+      .fork(result => {
+        assert.deepEqual(result, {
+          value: 2,
+          context: {
+            tags: [
+              { value: 'tag3', data: { b: 2 } },
+              { value: 'tag4', data: { b: 3 } },
+              { value: 'tag1', data: {} },
+              { value: 'tag2', data: { a: 1 } },
+              { value: 'tag5', data: 'zz' },
+            ],
+          },
+        });
+
+        future1.fork(result2 => {
+          assert.deepEqual(result2, {
+            value: 2,
+            context: {
+              tags: [
+                { value: 'tag1', data: {} },
+                { value: 'tag2', data: { a: 1 } },
+              ],
+            },
+          });
+          done();
+        });
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+  });
+
+  it('skipping unreachable tags', done => {
+    let catch1Entered = false;
+    const future = Future.resolve(2)
+      .tag('tag1', { a: 1 })
+      .then(() => Future.reject('zz'))
+      .tag('tag2')
+      .then(str => str + 'a')
+      .tag('tag3')
+      .tag('tag4');
+
+    future
+      .then(str => str + 'b')
+      .tag('tag5')
+      .catch(error => {
+        catch1Entered = true;
+      })
+      .tag('tag6', 'xx')
+      .then(() => Future.resolve(2))
+      .catch(() => {
+        assert.fail('shouldn\'t get into the reject branch');
+      })
+      .tag('tag7')
+      .fork(result => {
+        assert.ok(catch1Entered);
+        assert.deepEqual(result, {
+          value: 2,
+          context: { tags: [
+            { value: 'tag1', data: { a: 1 } },
+            { value: 'tag6', data: 'xx' },
+            { value: 'tag7', data: undefined },
+          ] },
+        });
+
+        future
+          .fork(() => {
+            assert.fail('shouldn\'t get into the resolve branch');
+          }, error => {
+            assert.deepEqual(error, {
+              error: 'zz',
+              context: { tags: [{ value: 'tag1', data: { a: 1 } }] },
+            });
+            done();
+          })
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+  });
+
+  it('merging contexts with catch clauses', done => {
+    const future = Future.resolve(3)
+      .tag('tag1')
+      .then(() => Future.reject())
+      .tag('tag2')
+      .catch(() => {
+        throw 'aa';
+      })
+      .tag('tag3')
+      .then(() => 3)
+      .tag('tag4')
+      .catch(() => 1)
+      .tag('tag5')
+      .then(() => Future.reject(5));
+
+    Future.resolve(10)
+      .tag('taga', { a: 1 })
+      .tag('tagb', { b: 2 })
+      .then(() => future)
+      .fork(() => {
+        assert.fail('shouldn\'t get into the resolve branch');
+      }, error => {
+        assert.deepEqual(error, {
+          error: 5,
+          context: { tags: [
+            { value: 'taga', data: { a: 1 } },
+            { value: 'tagb', data: { b: 2 } },
+            { value: 'tag1', data: undefined },
+            { value: 'tag5', data: undefined },
+          ] },
+        });
+
+        Future.resolve(5)
+          .tag('tagc')
+          .tag('tagd')
+          .then(() => Future.reject(6))
+          .tag('tage')
+          .catch(() => future)
+          .fork(() => {
+            assert.fail('shouldn\'t get into the resolve branch');
+          }, error => {
+            assert.deepEqual(error, {
+              error: 5,
+              context: { tags: [
+                { value: 'tagc', data: undefined },
+                { value: 'tagd', data: undefined },
+                { value: 'tag1', data: undefined },
+                { value: 'tag5', data: undefined },
+              ] },
+            });
+            done();
+          });
+      });
+  });
+
+  it('merging context of a rejected future with a fulfilled one', done => {
+    const future = Future.resolve(3)
+      .tag('tag1')
+      .tag('tag2');
+
+    Future.resolve()
+      .tag('taga')
+      .tag('tagb')
+      .then(() => Future.reject())
+      .catch(() => future)
+      .fork(result => {
+        assert.deepEqual(result, {
+          value: 3,
+          context: { tags: [
+            { value: 'taga', data: undefined },
+            { value: 'tagb', data: undefined },
+            { value: 'tag1', data: undefined },
+            { value: 'tag2', data: undefined },
+          ] },
+        });
+        done();
+      });
+  });
+});

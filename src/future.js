@@ -51,8 +51,8 @@ class Future {
     return new Future(this._f.pipe(f.chainRej(this._wrap(func, true))));
   }
 
-  tag(message, data) {
-    const context = { tag: [{ message, data }] };
+  tag(value, data) {
+    const context = { tags: [{ value, data }] };
     return new Future(this._f.pipe(f.chain(
       payload => f.resolve({
         value: payload.value,
