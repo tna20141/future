@@ -159,10 +159,4 @@ class Future {
   }
 }
 
-// Future.all([
-//   Future.after(1000, 1).tag('zz'),
-//   Future.rejectAfter(500, 2).tag('z'),
-//   Future.after(1000, 3).tag('zzz', 'z'),
-// ], { limit: 2, ignoreError: true }).fork(a => { console.log(a.value); console.log(a.context); }, console.log);
-
 module.exports = Future;
