@@ -1,5 +1,4 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');
@@ -28,7 +27,7 @@ describe(':: then', () => {
     Future.resolve('aa')
       .then(str => str + str)
       .then(str => Future.resolve(str + 'a')
-        .then(r.length)
+        .then(str => str.length)
         .then(numTransformation)
       )
       .then(num => num.toString())
@@ -36,5 +35,22 @@ describe(':: then', () => {
         assertWithEmptyContext(result, { value: 9 });
         done();
       });
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.resolve(2).then('aa');
+    }, {
+      name: 'TypeError',
+      message: 'then() expects a function as parameter',
+    });
+
+    assert.throws(() => {
+      Future.reject(2).then('aa');
+    }, {
+      name: 'TypeError',
+      message: 'then() expects a function as parameter',
+    });
+    done();
   });
 });

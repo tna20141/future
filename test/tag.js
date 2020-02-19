@@ -1,5 +1,4 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');

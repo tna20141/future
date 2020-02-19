@@ -1,11 +1,11 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');
 
 const assertWithEmptyContext = utils.assertWithEmptyContext;
 const timeoutOffset = 10;
+const timeoutOffsetLeft = 5;
 
 describe(':: after', () => {
   it('resolve value after some time', done => {
@@ -16,7 +16,8 @@ describe(':: after', () => {
       const end = Date.now();
       const diff = end - begin;
       assertWithEmptyContext(result, { value: { a: { b: 1 } } });
-      assert.ok(diff >= timeout && diff < timeout + timeoutOffset);
+      assert.ok(diff > timeout - timeoutOffsetLeft && diff < timeout + timeoutOffset,
+        `expected: ${timeout}, actual: ${diff}`);
       done();
     }, () => {
       assert.fail('shouldn\'t get into the reject branch');
@@ -30,7 +31,8 @@ describe(':: after', () => {
       const end = Date.now();
       const diff = end - begin;
       assertWithEmptyContext(result, { value: undefined });
-      assert.ok(diff >= timeout && diff < timeout + timeoutOffset);
+      assert.ok(diff > timeout - timeoutOffsetLeft && diff < timeout + timeoutOffset,
+        `expected: ${timeout}, actual: ${diff}`);
       done();
     }, () => {
       assert.fail('shouldn\'t get into the reject branch');
@@ -49,7 +51,8 @@ describe(':: rejectAfter', () => {
       const end = Date.now();
       const diff = end - begin;
       assertWithEmptyContext(error, { error: { a: { b: 1 } } });
-      assert.ok(diff >= timeout && diff < timeout + timeoutOffset);
+      assert.ok(diff > timeout - timeoutOffsetLeft && diff < timeout + timeoutOffset,
+        `expected: ${timeout}, actual: ${diff}`);
       done();
     });
   });
@@ -63,7 +66,8 @@ describe(':: rejectAfter', () => {
       const end = Date.now();
       const diff = end - begin;
       assertWithEmptyContext(error, { error: undefined });
-      assert.ok(diff >= timeout && diff < timeout + timeoutOffset);
+      assert.ok(diff > timeout - timeoutOffsetLeft && diff < timeout + timeoutOffset,
+        `expected: ${timeout}, actual: ${diff}`);
       done();
     });
   });

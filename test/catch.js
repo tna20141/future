@@ -1,5 +1,4 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');
@@ -122,10 +121,28 @@ describe(':: catch', () => {
       .fork(() => {
         assert.fail('shouldn\'t get into the resolve branch');
       }, error => {
-        assert.ok(r.has('error', error));
+        assert.ok(error);
+        assert.ok(error.error);
         assert.ok(error.error instanceof Error);
         assert.equal(error.error.message, 'Cannot set property \'c\' of undefined');
         done();
       })
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.resolve(2).catch('aa');
+    }, {
+      name: 'TypeError',
+      message: 'catch() expects a function as parameter',
+    });
+
+    assert.throws(() => {
+      Future.reject(2).catch('aa');
+    }, {
+      name: 'TypeError',
+      message: 'catch() expects a function as parameter',
+    });
+    done();
   });
 });

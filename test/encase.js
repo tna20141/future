@@ -1,5 +1,4 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');
@@ -48,6 +47,16 @@ describe(':: encaseF', () => {
         assertWithEmptyContext(error, { error: 'zz' });
         done();
       });
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.encaseF('');
+    }, {
+      name: 'TypeError',
+      message: 'encaseF() expects a function as parameter',
+    });
+    done();
   });
 });
 
@@ -120,6 +129,16 @@ describe(':: encaseP', () => {
           assert.fail('shouldn\'t get into the reject branch');
         });
     });
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.encaseP(0);
+    }, {
+      name: 'TypeError',
+      message: 'encaseP() expects a function as parameter',
+    });
+    done();
   });
 });
 
@@ -198,5 +217,15 @@ describe(':: encaseC', done => {
           assert.fail('shouldn\'t get into the reject branch');
         });
     });
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.encaseC([]);
+    }, {
+      name: 'TypeError',
+      message: 'encaseC() expects a function as parameter',
+    });
+    done();
   });
 });

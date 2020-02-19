@@ -1,8 +1,8 @@
-// TODO: assert & verify & error codes
-
 const f = require('fluture');
-const r = require('ramda');
-const assert = require('assert');
+
+function _isNil(val) {
+  return val === undefined || val === null;
+}
 
 class Future {
   constructor(input) {
@@ -10,7 +10,11 @@ class Future {
       this._f = input;
       return;
     }
-    assert.ok(typeof input === 'function', 'Constructor expects a function as parameter');
+
+    if (typeof input !== 'function') {
+      throw new TypeError('constructor expects a function as parameter');
+    }
+
     this._f = f((reject, resolve) => {
       try {
         input(resolve, reject);
@@ -25,7 +29,7 @@ class Future {
 
 
   _wrap(func, isCaught) {
-    return (result) => {
+    return result => {
       let output;
       try {
         output = func(isCaught ? result.error : result.value);
@@ -50,10 +54,16 @@ class Future {
   }
 
   then(func) {
+    if (typeof func !== 'function') {
+      throw new TypeError('then() expects a function as parameter');
+    }
     return new Future(this._f.pipe(f.chain(this._wrap(func))));
   }
 
   catch(func) {
+    if (typeof func !== 'function') {
+      throw new TypeError('catch() expects a function as parameter');
+    }
     return new Future(this._f.pipe(f.chainRej(this._wrap(func, true))));
   }
 
@@ -74,16 +84,16 @@ class Future {
   }
 
   static _mergeContext(c1, c2) {
-    const newContext = r.clone(c1);
-    const newTags = r.concat(c1.tags || [], c2.tags || []);
-    if (!r.isEmpty(newTags)) {
+    const newContext = {};
+    const newTags = (c1.tags || []).concat(c2.tags || []);
+    if (newTags.length) {
       newContext.tags = newTags;
     }
     return newContext;
   }
 
   static _mergeContextArray(contexts) {
-    return r.reduce(Future._mergeContext, Future._initContext(), contexts);
+    return contexts.reduce(Future._mergeContext, Future._initContext());
   }
 
   static _initContext() {
@@ -107,6 +117,9 @@ class Future {
   }
 
   static encaseF(func) {
+    if (typeof func !== 'function') {
+      throw new TypeError('encaseF() expects a function as parameter');
+    }
     return (...args) => {
       try {
         return Future.resolve(func(...args));
@@ -117,6 +130,9 @@ class Future {
   }
 
   static encaseP(func) {
+    if (typeof func !== 'function') {
+      throw new TypeError('encaseP() expects a function as parameter');
+    }
     return (...args) => {
       return new Future((resolve, reject) => {
         try {
@@ -131,11 +147,14 @@ class Future {
   }
 
   static encaseC(func) {
+    if (typeof func !== 'function') {
+      throw new TypeError('encaseC() expects a function as parameter');
+    }
     return (...args) => {
       return new Future((resolve, reject) => {
         try {
           func(...args, (error, result) => {
-            if (!r.isNil(error)) {
+            if (!_isNil(error)) {
               return reject(error);
             }
             return resolve(result);
@@ -148,17 +167,33 @@ class Future {
   }
 
   static all(futures, options = {}) {
+    if (!Array.isArray(futures)) {
+      throw new TypeError('all() expects an array as parameter');
+    }
+    if (!_isNil(options.limit) && options.limit !== Infinity &&
+      (!Number.isInteger(options.limit) || options.limit < 1)) {
+      throw new TypeError('options.limit is not a positive integer');
+    }
+    if (!_isNil(options.ignoreError) && typeof options.ignoreError !== 'boolean') {
+      throw new TypeError('options.ignoreError is not a boolean');
+    }
+    if (!_isNil(options.saveAllContexts) && typeof options.saveAllContexts !== 'boolean') {
+      throw new TypeError('options.saveAllContexts is not a boolean');
+    }
     const limit = options.limit || Infinity;
     const futureMap = options.ignoreError ?
       future => future.catch(Future.resolve)._f :
       future => future._f;
+    const inputMap = input => input instanceof Future ?
+      futureMap(input) :
+      Future.resolve(input)._f;
     const allFuture = f
-      .parallel(limit)(r.map(futureMap, futures))
+      .parallel(limit)(futures.map(inputMap))
       .pipe(f.chain(results => f.resolve({
         value: results.map(result => result.value),
         context: options.saveAllContexts ?
           Future._mergeContextArray(results.map(result => result.context)) :
-          r.pathOr(Future._initContext(), [0, 'context'], results),
+          results.length ? results[0].context : Future._initContext(),
       })));
 
     return new Future(allFuture);

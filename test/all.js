@@ -1,11 +1,11 @@
 const assert = require('assert');
-const r = require('ramda');
 
 const Future = require('../index');
 const utils = require('./utils');
 
 const assertWithEmptyContext = utils.assertWithEmptyContext;
 const timeoutOffset = 15;
+const timeoutOffsetLeft = 5;
 
 describe(':: all', () => {
   it('empty list', done => {
@@ -204,7 +204,8 @@ describe(':: all', () => {
           const diff = end - begin;
           assert.deepEqual(order, expectedOrder);
           assert.deepEqual(result, expectedResult);
-          assert.ok(diff >= expectedTime && diff < expectedTime + timeoutOffset);
+          assert.ok(diff > expectedTime - timeoutOffsetLeft && diff < expectedTime + timeoutOffset,
+            `expected: ${expectedTime}, actual: ${diff}`);
         }, () => {
           assert.fail('shouldn\'t get into the reject branch');
         });
@@ -255,7 +256,10 @@ describe(':: all', () => {
             const diff = end - begin;
             assert.deepEqual(order, expectedOrder);
             assertWithEmptyContext(error, { error: expectedError });
-            assert.ok(diff >= expectedTime && diff < expectedTime + timeoutOffset);
+            assert.ok(
+              diff > expectedTime - timeoutOffsetLeft &&
+              diff < expectedTime + timeoutOffset,
+              `expected: ${expectedTime}, actual: ${diff}`);
           });
       }
 
@@ -305,7 +309,6 @@ describe(':: all', () => {
             { name: '5', data: undefined },
           ] },
         });
-        done();
 
         Future.all([
           payload(200, 1, true),
@@ -313,13 +316,15 @@ describe(':: all', () => {
         ], { ignoreError: true })
           .catch(() => {
             assert.fail('shouldn\'t get into the reject branch');
-          }, result => {
+          })
+          .fork(result => {
             assert.deepEqual(result, {
               value: [1, 2],
               context: { tags: [
                 { name: '1', data: undefined },
               ] },
             });
+            console.log('aaaaaaaaaaa');
             done();
           }, () => {
             assert.fail('shouldn\'t get into the reject branch');
