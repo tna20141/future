@@ -24,10 +24,10 @@ describe(':: tag', () => {
           value: '4a',
           context: {
             tags: [
-              { value: 'tag1', data: { name: 'tag1' } },
-              { value: 'tag1', data: 33 },
-              { value: 'tag2', data: { a: { b: 1 } } },
-              { value: 'tag 3', data: undefined },
+              { name: 'tag1', data: { name: 'tag1' } },
+              { name: 'tag1', data: 33 },
+              { name: 'tag2', data: { a: { b: 1 } } },
+              { name: 'tag 3', data: undefined },
             ],
           },
         });
@@ -54,11 +54,11 @@ describe(':: tag', () => {
           value: 2,
           context: {
             tags: [
-              { value: 'tag3', data: { b: 2 } },
-              { value: 'tag4', data: { b: 3 } },
-              { value: 'tag1', data: {} },
-              { value: 'tag2', data: { a: 1 } },
-              { value: 'tag5', data: 'zz' },
+              { name: 'tag3', data: { b: 2 } },
+              { name: 'tag4', data: { b: 3 } },
+              { name: 'tag1', data: {} },
+              { name: 'tag2', data: { a: 1 } },
+              { name: 'tag5', data: 'zz' },
             ],
           },
         });
@@ -68,8 +68,8 @@ describe(':: tag', () => {
             value: 2,
             context: {
               tags: [
-                { value: 'tag1', data: {} },
-                { value: 'tag2', data: { a: 1 } },
+                { name: 'tag1', data: {} },
+                { name: 'tag2', data: { a: 1 } },
               ],
             },
           });
@@ -107,9 +107,9 @@ describe(':: tag', () => {
         assert.deepEqual(result, {
           value: 2,
           context: { tags: [
-            { value: 'tag1', data: { a: 1 } },
-            { value: 'tag6', data: 'xx' },
-            { value: 'tag7', data: undefined },
+            { name: 'tag1', data: { a: 1 } },
+            { name: 'tag6', data: 'xx' },
+            { name: 'tag7', data: undefined },
           ] },
         });
 
@@ -119,7 +119,7 @@ describe(':: tag', () => {
           }, error => {
             assert.deepEqual(error, {
               error: 'zz',
-              context: { tags: [{ value: 'tag1', data: { a: 1 } }] },
+              context: { tags: [{ name: 'tag1', data: { a: 1 } }] },
             });
             done();
           })
@@ -153,10 +153,10 @@ describe(':: tag', () => {
         assert.deepEqual(error, {
           error: 5,
           context: { tags: [
-            { value: 'taga', data: { a: 1 } },
-            { value: 'tagb', data: { b: 2 } },
-            { value: 'tag1', data: undefined },
-            { value: 'tag5', data: undefined },
+            { name: 'taga', data: { a: 1 } },
+            { name: 'tagb', data: { b: 2 } },
+            { name: 'tag1', data: undefined },
+            { name: 'tag5', data: undefined },
           ] },
         });
 
@@ -172,10 +172,10 @@ describe(':: tag', () => {
             assert.deepEqual(error, {
               error: 5,
               context: { tags: [
-                { value: 'tagc', data: undefined },
-                { value: 'tagd', data: undefined },
-                { value: 'tag1', data: undefined },
-                { value: 'tag5', data: undefined },
+                { name: 'tagc', data: undefined },
+                { name: 'tagd', data: undefined },
+                { name: 'tag1', data: undefined },
+                { name: 'tag5', data: undefined },
               ] },
             });
             done();
@@ -197,10 +197,10 @@ describe(':: tag', () => {
         assert.deepEqual(result, {
           value: 3,
           context: { tags: [
-            { value: 'taga', data: undefined },
-            { value: 'tagb', data: undefined },
-            { value: 'tag1', data: undefined },
-            { value: 'tag2', data: undefined },
+            { name: 'taga', data: undefined },
+            { name: 'tagb', data: undefined },
+            { name: 'tag1', data: undefined },
+            { name: 'tag2', data: undefined },
           ] },
         });
         done();

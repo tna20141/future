@@ -51,8 +51,8 @@ class Future {
     return new Future(this._f.pipe(f.chainRej(this._wrap(func, true))));
   }
 
-  tag(value, data) {
-    const context = { tags: [{ value, data }] };
+  tag(name, data) {
+    const context = { tags: [{ name, data }] };
     return new Future(this._f.pipe(f.chain(
       payload => f.resolve({
         value: payload.value,
@@ -74,6 +74,10 @@ class Future {
       newContext.tags = newTags;
     }
     return newContext;
+  }
+
+  static _mergeContextArray(contexts) {
+    return r.reduce(Future._mergeContext, Future._initContext(), contexts);
   }
 
   static _initContext() {
@@ -136,6 +140,29 @@ class Future {
       });
     };
   }
+
+  static all(futures, options = {}) {
+    const limit = options.limit || Infinity;
+    const futureMap = options.ignoreError ?
+      future => future.catch(Future.resolve)._f :
+      future => future._f;
+    const allFuture = f
+      .parallel(limit)(r.map(futureMap, futures))
+      .pipe(f.chain(results => f.resolve({
+        value: results.map(result => result.value),
+        context: options.saveAllContexts ?
+          Future._mergeContextArray(results.map(result => result.context)) :
+          r.pathOr(Future._initContext(), [0, 'context'], results),
+      })));
+
+    return new Future(allFuture);
+  }
 }
+
+// Future.all([
+//   Future.after(1000, 1).tag('zz'),
+//   Future.rejectAfter(500, 2).tag('z'),
+//   Future.after(1000, 3).tag('zzz', 'z'),
+// ], { limit: 2, ignoreError: true }).fork(a => { console.log(a.value); console.log(a.context); }, console.log);
 
 module.exports = Future;
