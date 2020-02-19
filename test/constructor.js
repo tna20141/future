@@ -48,4 +48,28 @@ describe(':: new Future', () => {
           });
       });
   });
+
+  it('new future function throws exception', done => {
+    const future = new Future(() => {
+      throw 'aa';
+    });
+
+    future
+      .then(() => {
+        assert.fail('shouldn\'t get into the resolve branch');
+      })
+      .fork(() => {
+        assert.fail('shouldn\'t get into the resolve branch');
+      }, error => {
+        assertWithEmptyContext(error, { error: 'aa' });
+        future
+          .catch(str => str + 'a')
+          .fork(result => {
+            assertWithEmptyContext(result, { value: 'aaa' });
+            done();
+          }, () => {
+            assert.fail('shouldn\'t get into the reject branch');
+          });
+      });
+  });
 });

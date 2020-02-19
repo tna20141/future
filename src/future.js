@@ -2,15 +2,21 @@
 
 const f = require('fluture');
 const r = require('ramda');
+const assert = require('assert');
 
 class Future {
   constructor(input) {
-    if (typeof input === 'object') {
+    if (f.isFuture(input)) {
       this._f = input;
       return;
     }
+    assert.ok(typeof input === 'function', 'Constructor expects a function as parameter');
     this._f = f((reject, resolve) => {
-      input(resolve, reject);
+      try {
+        input(resolve, reject);
+      } catch (e) {
+        reject(e);
+      }
       return () => {};
     })
       .pipe(f.chain(value => f.resolve({ value, context: Future._initContext() })))
