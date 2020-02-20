@@ -4,6 +4,46 @@ function _isNil(val) {
   return val === undefined || val === null;
 }
 
+function _dummyFunc() {}
+
+function _get(future) {
+  return future._f;
+}
+
+function _catchAndGet(future) {
+  return future.catch(Future.resolve)._f;
+}
+
+function _value(object) {
+  return object.value;
+}
+
+function _context(object) {
+  return object.context;
+}
+
+function _initContext() {
+  return undefined;
+}
+function _mergeContext(c1, c2) {
+  if (c2 === undefined) {
+    return c1;
+  }
+  if (c1 === undefined) {
+    return c2;
+  }
+  const newContext = {};
+  const newTags = (c1.tags || []).concat(c2.tags || []);
+  if (newTags.length) {
+    newContext.tags = newTags;
+  }
+  return newContext;
+}
+
+function _mergeContextArray(contexts) {
+  return contexts.reduce(_mergeContext, _initContext());
+}
+
 class Future {
   constructor(input) {
     if (f.isFuture(input)) {
@@ -21,12 +61,11 @@ class Future {
       } catch (e) {
         reject(e);
       }
-      return () => {};
+      return _dummyFunc;
     })
-      .pipe(f.chain(value => f.resolve({ value, context: Future._initContext() })))
-      .pipe(f.chainRej(error => f.reject({ error, context: Future._initContext() })));
+      .pipe(f.map(value => ({ value })))
+      .pipe(f.mapRej(error => ({ error })));
   }
-
 
   _wrap(func, isCaught) {
     return result => {
@@ -38,16 +77,16 @@ class Future {
       }
       const outputFuture = output instanceof Future ? output : Future.resolve(output);
       return outputFuture._f
-        .pipe(f.chain(payload =>
-          f.resolve({
+        .pipe(f.map(payload =>
+          ({
             value: payload.value,
-            context: Future._mergeContext(result.context, payload.context),
+            context: _mergeContext(result.context, payload.context),
           })
         ))
-        .pipe(f.chainRej(payload =>
-          f.reject({
+        .pipe(f.mapRej(payload =>
+          ({
             error: payload.error,
-            context: Future._mergeContext(result.context, payload.context),
+            context: _mergeContext(result.context, payload.context),
           })
         ));
     }
@@ -69,51 +108,35 @@ class Future {
 
   tag(name, data) {
     const context = { tags: [{ name, data }] };
-    return new Future(this._f.pipe(f.chain(
-      payload => f.resolve({
+    return new Future(this._f.pipe(f.map(
+      payload => ({
         value: payload.value,
-        context: Future._mergeContext(payload.context, context),
+        context: _mergeContext(payload.context, context),
       })
     )));
   }
 
   fork(resolve, reject) {
-    resolve = resolve || (() => {});
-    reject = reject || (() => {});
+    resolve = resolve || _dummyFunc;
+    reject = reject || _dummyFunc;
     return f.fork(reject)(resolve)(this._f);
   }
 
-  static _mergeContext(c1, c2) {
-    const newContext = {};
-    const newTags = (c1.tags || []).concat(c2.tags || []);
-    if (newTags.length) {
-      newContext.tags = newTags;
-    }
-    return newContext;
-  }
-
-  static _mergeContextArray(contexts) {
-    return contexts.reduce(Future._mergeContext, Future._initContext());
-  }
-
-  static _initContext() {
-    return {};
-  }
 
   static resolve(value) {
-    return new Future(f.resolve({ value, context: Future._initContext() }));
+    return new Future(f.resolve({ value }));
   }
 
   static reject(error) {
-    return new Future(f.reject({ error, context: Future._initContext() }))
+    return new Future(f.reject({ error }))
   }
 
   static after(miliseconds, value) {
-    return new Future(f.after(miliseconds)({ value, context: Future._initContext() }));
+    return new Future(f.after(miliseconds)({ value }));
   }
 
   static rejectAfter(miliseconds, error) {
-    return new Future(f.rejectAfter(miliseconds)({ error, context: Future._initContext() }));
+    return new Future(f.rejectAfter(miliseconds)({ error }));
   }
 
   static encaseF(func) {
@@ -181,19 +204,17 @@ class Future {
       throw new TypeError('options.saveAllContexts is not a boolean');
     }
     const limit = options.limit || Infinity;
-    const futureMap = options.ignoreError ?
-      future => future.catch(Future.resolve)._f :
-      future => future._f;
+    const futureMap = options.ignoreError ? _catchAndGet : _get;
     const inputMap = input => input instanceof Future ?
       futureMap(input) :
       Future.resolve(input)._f;
     const allFuture = f
       .parallel(limit)(futures.map(inputMap))
-      .pipe(f.chain(results => f.resolve({
-        value: results.map(result => result.value),
+      .pipe(f.map(results => ({
+        value: results.map(_value),
         context: options.saveAllContexts ?
-          Future._mergeContextArray(results.map(result => result.context)) :
-          results.length ? results[0].context : Future._initContext(),
+          _mergeContextArray(results.map(_context)) :
+          results.length ? results[0].context : _initContext(),
       })));
 
     return new Future(allFuture);

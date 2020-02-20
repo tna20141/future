@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const Future = require('../index');
+const Future = require('../../index');
 const utils = require('./utils');
 
 const assertWithEmptyContext = utils.assertWithEmptyContext;
@@ -324,7 +324,6 @@ describe(':: all', () => {
                 { name: '1', data: undefined },
               ] },
             });
-            console.log('aaaaaaaaaaa');
             done();
           }, () => {
             assert.fail('shouldn\'t get into the reject branch');
@@ -332,5 +331,89 @@ describe(':: all', () => {
       }, () => {
         assert.fail('shouldn\'t get into the reject branch');
       });
+  });
+
+  it('resolving value', done => {
+    Future.all([1])
+      .then(arr => arr.concat(2))
+      .fork(result => {
+        assertWithEmptyContext(result, { value: [1, 2] });
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+
+    Future.all(['aa', { b: 1 }])
+      .fork(result => {
+        assertWithEmptyContext(result, { value: ['aa', { b: 1 }] });
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+
+    Future.all([
+      Future.resolve(3),
+      ['z', 'zz', { b: 3 }],
+      Future.resolve(2).then(Future.reject),
+      null,
+      Future.rejectAfter(200, 'r'),
+      undefined,
+    ], { limit: 2, ignoreError: true })
+      .fork(result => {
+        assertWithEmptyContext(result, { value: [
+          3,
+          ['z', 'zz', { b: 3 }],
+          2,
+          null,
+          'r',
+          undefined,
+        ] });
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+
+    setTimeout(done, 500);
+  });
+
+  it('invalid input', done => {
+    assert.throws(() => {
+      Future.all({ a: Future.resolve(1) })
+        .then(() => {
+          assert.fail('shouldn\'t get into the resolve branch');
+        });
+    }, {
+      name: 'TypeError',
+      message: 'all() expects an array as parameter',
+    });
+
+    assert.throws(() => {
+      Future.all([], { limit: 0 })
+        .then(() => {
+          assert.fail('shouldn\'t get into the resolve branch');
+        });
+    }, {
+      name: 'TypeError',
+      message: 'options.limit is not a positive integer',
+    });
+
+    assert.throws(() => {
+      Future.all([], { ignoreError: '' })
+        .then(() => {
+          assert.fail('shouldn\'t get into the resolve branch');
+        });
+    }, {
+      name: 'TypeError',
+      message: 'options.ignoreError is not a boolean',
+    });
+
+    assert.throws(() => {
+      Future.all([], { saveAllContexts: 0 })
+        .then(() => {
+          assert.fail('shouldn\'t get into the resolve branch');
+        });
+    }, {
+      name: 'TypeError',
+      message: 'options.saveAllContexts is not a boolean',
+    });
+
+    done();
   });
 });

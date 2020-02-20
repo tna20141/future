@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const Future = require('../index');
+const Future = require('../../index');
 const utils = require('./utils');
 
 const assertWithEmptyContext = utils.assertWithEmptyContext;

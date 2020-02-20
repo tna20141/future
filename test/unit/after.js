@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const Future = require('../index');
+const Future = require('../../index');
 const utils = require('./utils');
 
 const assertWithEmptyContext = utils.assertWithEmptyContext;
@@ -23,6 +23,7 @@ describe(':: after', () => {
       assert.fail('shouldn\'t get into the reject branch');
     });
   });
+
   it('resolve nothing after some time', done => {
     const timeout = 500;
     const future = Future.after(timeout);
@@ -56,6 +57,7 @@ describe(':: rejectAfter', () => {
       done();
     });
   });
+
   it('reject nothing after some time', done => {
     const timeout = 500;
     const future = Future.rejectAfter(timeout);
