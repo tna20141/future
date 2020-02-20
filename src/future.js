@@ -43,6 +43,16 @@ function _mergeContext(c1, c2) {
 function _mergeContextArray(contexts) {
   return contexts.reduce(_mergeContext, _initContext());
 }
+function _a(func, isCaught, result) {
+  let output;
+  try {
+    output = func(isCaught ? result.error : result.value);
+  } catch (ex) {
+    output = Future.reject(ex);
+  }
+  const outputFuture = output instanceof Future ? output : Future.resolve(output);
+  return outputFuture._f;
+}
 
 class Future {
   constructor(input) {
@@ -69,26 +79,21 @@ class Future {
 
   _wrap(func, isCaught) {
     return result => {
-      let output;
-      try {
-        output = func(isCaught ? result.error : result.value);
-      } catch (ex) {
-        output = Future.reject(ex);
-      }
-      const outputFuture = output instanceof Future ? output : Future.resolve(output);
-      return outputFuture._f
-        .pipe(f.map(payload =>
-          ({
-            value: payload.value,
-            context: _mergeContext(result.context, payload.context),
-          })
-        ))
-        .pipe(f.mapRej(payload =>
-          ({
-            error: payload.error,
-            context: _mergeContext(result.context, payload.context),
-          })
-        ));
+      // let output;
+      // try {
+      //   output = func(isCaught ? result.error : result.value);
+      // } catch (ex) {
+      //   output = Future.reject(ex);
+      // }
+      // const outputFuture = output instanceof Future ? output : Future.resolve(output);
+      const _mergeContextToPayload = payload => {
+        payload.context = _mergeContext(result.context, payload.context);
+        return payload;
+      };
+      // return outputFuture._f
+      return _a(func, isCaught, result)
+        .pipe(f.map(_mergeContextToPayload))
+        .pipe(f.mapRej(_mergeContextToPayload));
     }
   }
 
