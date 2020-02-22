@@ -10,6 +10,15 @@ function _get(future) {
   return future._f;
 }
 
+function _applyContext(payload) {
+  payload.context = _mergeContext(this.context, payload.context);
+  return payload;
+}
+
+function _isContextEmpty(context) {
+  return _isNil(context) || !Object.keys(context).length;
+}
+
 function _catchAndGet(future) {
   return future.catch(Future.resolve)._f;
 }
@@ -26,14 +35,14 @@ function _initContext() {
   return undefined;
 }
 function _mergeContext(c1, c2) {
-  if (c2 === undefined) {
+  if (c2 === undefined || !c2.tags || !c2.tags.length) {
     return c1;
   }
-  if (c1 === undefined) {
+  if (c1 === undefined || !c1.tags || !c1.tags.length) {
     return c2;
   }
   const newContext = {};
-  const newTags = (c1.tags || []).concat(c2.tags || []);
+  const newTags = c1.tags.concat(c2.tags);
   if (newTags.length) {
     newContext.tags = newTags;
   }
@@ -42,16 +51,6 @@ function _mergeContext(c1, c2) {
 
 function _mergeContextArray(contexts) {
   return contexts.reduce(_mergeContext, _initContext());
-}
-function _a(func, isCaught, result) {
-  let output;
-  try {
-    output = func(isCaught ? result.error : result.value);
-  } catch (ex) {
-    output = Future.reject(ex);
-  }
-  const outputFuture = output instanceof Future ? output : Future.resolve(output);
-  return outputFuture._f;
 }
 
 class Future {
@@ -79,19 +78,24 @@ class Future {
 
   _wrap(func, isCaught) {
     return result => {
-      // let output;
-      // try {
-      //   output = func(isCaught ? result.error : result.value);
-      // } catch (ex) {
-      //   output = Future.reject(ex);
-      // }
-      // const outputFuture = output instanceof Future ? output : Future.resolve(output);
-      const _mergeContextToPayload = payload => {
-        payload.context = _mergeContext(result.context, payload.context);
-        return payload;
-      };
-      // return outputFuture._f
-      return _a(func, isCaught, result)
+      let output;
+      try {
+        output = func(isCaught ? result.error : result.value);
+      } catch (ex) {
+        output = Future.reject(ex);
+      }
+      const outputFuture = output instanceof Future ? output : Future.resolve(output);
+      /*
+       * we should avoid chaining as much as possible, especially at the tail end,
+       * because the chained anonymous functions will take up space and will not be freed
+       * until the chained clause before it is finished.
+       */
+      if (_isContextEmpty(result.context)) {
+        return outputFuture._f;
+      }
+      // bind seems faster than creating a new anonymous function
+      const _mergeContextToPayload = _applyContext.bind(result);
+      return outputFuture._f
         .pipe(f.map(_mergeContextToPayload))
         .pipe(f.mapRej(_mergeContextToPayload));
     }
