@@ -11,6 +11,7 @@ function _get(future) {
 }
 
 function _applyContext(payload) {
+  // eslint-disable-next-line no-param-reassign
   payload.context = _mergeContext(this.context, payload.context);
   return payload;
 }
@@ -34,6 +35,7 @@ function _context(object) {
 function _initContext() {
   return undefined;
 }
+
 function _mergeContext(c1, c2) {
   if (c2 === undefined || !c2.tags || !c2.tags.length) {
     return c1;
@@ -51,6 +53,32 @@ function _mergeContext(c1, c2) {
 
 function _mergeContextArray(contexts) {
   return contexts.reduce(_mergeContext, _initContext());
+}
+
+
+function _wrap(func, isCaught) {
+  return result => {
+    let output;
+    try {
+      output = func(isCaught ? result.error : result.value);
+    } catch (ex) {
+      output = Future.reject(ex);
+    }
+    const outputFuture = output instanceof Future ? output : Future.resolve(output);
+    /*
+     * we should avoid chaining as much as possible, especially at the tail end,
+     * because the chained anonymous functions will take up space and will not be freed
+     * until the chained clause before it is finished.
+     */
+    if (_isContextEmpty(result.context)) {
+      return outputFuture._f;
+    }
+    // bind seems faster than creating a new anonymous function
+    const _mergeContextToPayload = _applyContext.bind(result);
+    return outputFuture._f
+      .pipe(f.map(_mergeContextToPayload))
+      .pipe(f.mapRej(_mergeContextToPayload));
+  };
 }
 
 class Future {
@@ -76,43 +104,18 @@ class Future {
       .pipe(f.mapRej(error => ({ error })));
   }
 
-  _wrap(func, isCaught) {
-    return result => {
-      let output;
-      try {
-        output = func(isCaught ? result.error : result.value);
-      } catch (ex) {
-        output = Future.reject(ex);
-      }
-      const outputFuture = output instanceof Future ? output : Future.resolve(output);
-      /*
-       * we should avoid chaining as much as possible, especially at the tail end,
-       * because the chained anonymous functions will take up space and will not be freed
-       * until the chained clause before it is finished.
-       */
-      if (_isContextEmpty(result.context)) {
-        return outputFuture._f;
-      }
-      // bind seems faster than creating a new anonymous function
-      const _mergeContextToPayload = _applyContext.bind(result);
-      return outputFuture._f
-        .pipe(f.map(_mergeContextToPayload))
-        .pipe(f.mapRej(_mergeContextToPayload));
-    }
-  }
-
   then(func) {
     if (typeof func !== 'function') {
       throw new TypeError('then() expects a function as parameter');
     }
-    return new Future(this._f.pipe(f.chain(this._wrap(func))));
+    return new Future(this._f.pipe(f.chain(_wrap(func))));
   }
 
   catch(func) {
     if (typeof func !== 'function') {
       throw new TypeError('catch() expects a function as parameter');
     }
-    return new Future(this._f.pipe(f.chainRej(this._wrap(func, true))));
+    return new Future(this._f.pipe(f.chainRej(_wrap(func, true))));
   }
 
   tag(name, data) {
@@ -121,12 +124,14 @@ class Future {
       payload => ({
         value: payload.value,
         context: _mergeContext(payload.context, context),
-      })
+      }),
     )));
   }
 
   fork(resolve, reject) {
+    // eslint-disable-next-line no-param-reassign
     resolve = resolve || _dummyFunc;
+    // eslint-disable-next-line no-param-reassign
     reject = reject || _dummyFunc;
     return f.fork(reject)(resolve)(this._f);
   }
@@ -146,7 +151,7 @@ class Future {
   }
 
   static reject(error) {
-    return new Future(f.reject({ error }))
+    return new Future(f.reject({ error }));
   }
 
   static after(miliseconds, value) {
@@ -167,52 +172,48 @@ class Future {
       } catch (e) {
         return Future.reject(e);
       }
-    }
+    };
   }
 
   static encaseP(func) {
     if (typeof func !== 'function') {
       throw new TypeError('encaseP() expects a function as parameter');
     }
-    return (...args) => {
-      return new Future((resolve, reject) => {
-        try {
-          func(...args)
-            .then(resolve)
-            .catch(reject);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    };
+    return (...args) => new Future((resolve, reject) => {
+      try {
+        func(...args)
+          .then(resolve)
+          .catch(reject);
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   static encaseC(func) {
     if (typeof func !== 'function') {
       throw new TypeError('encaseC() expects a function as parameter');
     }
-    return (...args) => {
-      return new Future((resolve, reject) => {
-        try {
-          func(...args, (error, result) => {
-            if (!_isNil(error)) {
-              return reject(error);
-            }
-            return resolve(result);
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
-    };
+    return (...args) => new Future((resolve, reject) => {
+      try {
+        func(...args, (error, result) => {
+          if (!_isNil(error)) {
+            return reject(error);
+          }
+          return resolve(result);
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   static all(futures, options = {}) {
     if (!Array.isArray(futures)) {
       throw new TypeError('all() expects an array as parameter');
     }
-    if (!_isNil(options.limit) && options.limit !== Infinity &&
-      (!Number.isInteger(options.limit) || options.limit < 1)) {
+    if (!_isNil(options.limit) && options.limit !== Infinity
+      && (!Number.isInteger(options.limit) || options.limit < 1)) {
       throw new TypeError('options.limit is not a positive integer');
     }
     if (!_isNil(options.ignoreError) && typeof options.ignoreError !== 'boolean') {
@@ -223,16 +224,17 @@ class Future {
     }
     const limit = options.limit || Infinity;
     const futureMap = options.ignoreError ? _catchAndGet : _get;
-    const inputMap = input => input instanceof Future ?
-      futureMap(input) :
-      Future.resolve(input)._f;
+    // eslint-disable-next-line no-confusing-arrow
+    const inputMap = input => input instanceof Future
+      ? futureMap(input) : Future.resolve(input)._f;
     const allFuture = f
       .parallel(limit)(futures.map(inputMap))
       .pipe(f.map(results => ({
         value: results.map(_value),
-        context: options.saveAllContexts ?
-          _mergeContextArray(results.map(_context)) :
-          results.length ? results[0].context : _initContext(),
+        // eslint-disable-next-line no-nested-ternary
+        context: options.saveAllContexts
+          ? _mergeContextArray(results.map(_context))
+          : results.length ? results[0].context : _initContext(),
       })));
 
     return new Future(allFuture);
