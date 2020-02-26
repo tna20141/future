@@ -131,6 +131,11 @@ class Future {
     return f.fork(reject)(resolve)(this._f);
   }
 
+  toPromise() {
+    return new Promise((resolve, reject) => {
+      f.fork(reject)(resolve)(this._f);
+    });
+  }
 
   static resolve(value) {
     return new Future(f.resolve({ value }));
