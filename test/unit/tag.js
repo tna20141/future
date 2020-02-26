@@ -205,4 +205,27 @@ describe(':: tag', () => {
         done();
       });
   });
+
+  it('initial tagging', done => {
+    const future = Future.tag('aa', 'bb')
+      .fork(result => {
+        assert.deepEqual(result, { value: undefined, context: { tags: [
+          { name: 'aa', data: 'bb' },
+        ] } });
+        Future.tag('bb')
+          .then(() => Future.resolve('cc'))
+          .tag('dd')
+          .fork(result2 => {
+            assert.deepEqual(result2, { value: 'cc', context: { tags: [
+              { name: 'bb', data: undefined },
+              { name: 'dd', data: undefined },
+            ] } });
+            done();
+          }, () => {
+            assert.fail('shouldn\'t get into the reject branch');
+          });
+      }, () => {
+        assert.fail('shouldn\'t get into the reject branch');
+      });
+  });
 });

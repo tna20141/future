@@ -137,6 +137,10 @@ class Future {
     });
   }
 
+  static tag(name, data) {
+    return Future.resolve().tag(name, data);
+  }
+
   static resolve(value) {
     return new Future(f.resolve({ value }));
   }
