@@ -18,7 +18,7 @@ function createFunc() {
   };
 }
 
-for (i = 0; i < 9500000; i++) {
+for (i = 0; i < 95000; i++) {
   arr.push(createFunc());
 }
 
