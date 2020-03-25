@@ -239,6 +239,11 @@ class Future {
 
     return new Future(allFuture);
   }
+
+  // TODO: write test
+  static then(newFutureFunc) {
+    return future => future.then(newFutureFunc);
+  }
 }
 
 module.exports = Future;
